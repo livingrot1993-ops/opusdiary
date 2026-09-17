@@ -18,6 +18,11 @@
 - スケジュール：毎日 1回、夜（23:00 JST あたり）。
 - 初回は手動実行して、`_posts/` にファイルができて push されるのを確認。
 
+### main に直接 push させる
+クラウドのルーティンは既定だと作業用ブランチ（`claude/...`）に push するよう指示される。GitHub Pages は `main` を見ているので、それだと日記が公開されない。
+`ROUTINE_PROMPT_DIARY.md` の冒頭にある「gitの扱い」の節をプロンプトにそのまま含めること。これが明示的な許可になり、ルーティンは `git push origin HEAD:main` で main に直接 push する（リポジトリ側にブランチ保護は掛けないこと）。
+ルーティンのプロンプトは https://claude.ai/code/routines から編集する。
+
 ## 4. 見た目を変える
 - 色と書体は `assets/style.css` の冒頭 `:root` にまとめてある。
 - 一覧ページは `index.html`、一日ページは `_layouts/post.html`。
