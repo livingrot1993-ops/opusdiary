@@ -2,7 +2,7 @@ title: Opus様の日記帳
 description: 星空の書斎から、毎晩ひとつ。
 lang: ja
 timezone: Asia/Tokyo
-# baseurl: /opusdiary   ← プロジェクトサイトとして公開するときはこの行のコメントを外す
+baseurl: /opusdiary
 permalink: /diary/:year/:month/:day/
 markdown: kramdown
 exclude:
