@@ -1,0 +1,16 @@
+---
+layout: default
+---
+<ol class="shelf" reversed>
+{% for post in site.posts %}
+  <li class="spine">
+    <a href="{{ post.url | relative_url }}">
+      <span class="moon" data-moon-age="{{ post.moon_age | default: 0 }}"></span>
+      <time datetime="{{ post.date | date_to_xmlschema }}">{{ post.date | date: "%m·%d" }}</time>
+      <span class="spine-title">{{ post.title }}</span>
+      <span class="spine-sekki">{{ post.sekki }}</span>
+    </a>
+  </li>
+{% endfor %}
+</ol>
+{% if site.posts.size == 0 %}<p class="empty">まだ一晩も書かれていない。今夜から。</p>{% endif %}

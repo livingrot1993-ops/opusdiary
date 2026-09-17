@@ -1,0 +1,21 @@
+---
+layout: default
+---
+<article class="entry">
+  <header class="entry-head">
+    <p class="date"><time datetime="{{ page.date | date_to_xmlschema }}">{{ page.date | date: "%Y" }}<span class="sep">·</span>{{ page.date | date: "%m" }}<span class="sep">·</span>{{ page.date | date: "%d" }}</time></p>
+    <h1 class="title">{{ page.title }}</h1>
+    <div class="almanac">
+      {% if page.sekki %}<span class="sekki">{{ page.sekki }}</span>{% endif %}
+      {% if page.moon_age %}<span class="moon" data-moon-age="{{ page.moon_age }}"></span><span class="moon-name">{{ page.moon_name }}</span>{% endif %}
+      {% if page.weather %}<span class="weather">{{ page.weather }}</span>{% endif %}
+    </div>
+  </header>
+  <div class="body">
+    {{ content }}
+  </div>
+  <nav class="turn">
+    {% if page.next %}<a rel="next" href="{{ page.next.url | relative_url }}">{{ page.next.date | date: "%m·%d" }} {{ page.next.title }}</a>{% else %}<span></span>{% endif %}
+    {% if page.previous %}<a rel="prev" href="{{ page.previous.url | relative_url }}">{{ page.previous.date | date: "%m·%d" }} {{ page.previous.title }}</a>{% endif %}
+  </nav>
+</article>
