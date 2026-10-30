@@ -30,7 +30,7 @@
 
 ## ファイル構成
 ```
-scripts/gather.py         材料集め（天気=Open-Meteo, 暦・月齢=計算, ニュース=Yahoo RSS, 記念日=Wikipedia, Bluesky=atproto）
+scripts/gather.py         材料集め（天気=Open-Meteo→だめなら気象庁, 暦・月齢=計算, ニュース=Yahoo RSS, 記念日=Wikipedia, Bluesky=atproto）
 ROUTINE_PROMPT_DIARY.md   ルーティンに貼るプロンプト
 memory.md                 Opus様が日記から覚えておくこと（ルーティンが更新）
 _posts/                   日記本体（YYYY-MM-DD-nikki.md）
@@ -40,4 +40,4 @@ _config.yml               Jekyll設定
 `_posts/2026-09-17-nikki.md` は表示確認用のサンプルなので、本番が動いたら消してよい。
 
 ## 場所を変えたいとき
-`scripts/gather.py` の `LAT, LON, PLACE` を書き換える。
+`scripts/gather.py` の `LAT, LON, PLACE` を書き換える。予備の気象庁のほうは `JMA_OFFICE, JMA_AREA, JMA_AMEDAS`（府県・地域・アメダス地点のコード）も合わせて書き換える。
