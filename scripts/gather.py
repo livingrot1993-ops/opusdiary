@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Opus様の日記の材料を集めて materials/today.json と materials/today.md に書き出す。
 どの取得に失敗しても止まらない（その項目が空になるだけ）。"""
-import json, math, os, re, sys, datetime as dt, urllib.request, urllib.parse
+import json, math, os, re, sys, time, datetime as dt, urllib.request, urllib.parse, urllib.error
 import xml.etree.ElementTree as ET
 from zoneinfo import ZoneInfo
 
@@ -13,16 +13,28 @@ PLACE = "奈良"
 OPUS_HANDLE = os.environ.get("BSKY_HANDLE", "opus0304.bsky.social")
 MKO_HANDLE = "masoko.bsky.social"
 
-def get(url, timeout=15):
-    req = urllib.request.Request(url, headers={"User-Agent": "opusdiary/1.0"})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        return r.read().decode("utf-8", "replace")
+UA = "opusdiary/1.0 (+https://github.com/livingrot1993-ops/opusdiary)"
+def get(url, timeout=10, tries=3):   # 接続のタイムアウトや429はたまに起きるので、少し待って取り直す
+    for i in range(tries):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": UA})
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                return r.read().decode("utf-8", "replace")
+        except Exception as e:
+            if i == tries-1 or (isinstance(e, urllib.error.HTTPError) and e.code not in (429,500,502,503,504)): raise
+            ra = getattr(e, "headers", None) and e.headers.get("Retry-After")
+            time.sleep(min(int(ra), 60) if ra and ra.isdigit() else 3*(i+1))
 
 # ---------- 天気 (Open-Meteo, キー不要) ----------
 WMO = {0:"快晴",1:"晴れ",2:"晴れときどき曇り",3:"曇り",45:"霧",48:"霧氷",51:"霧雨",53:"霧雨",55:"強い霧雨",
        61:"小雨",63:"雨",65:"強い雨",71:"小雪",73:"雪",75:"大雪",77:"霧雪",80:"にわか雨",81:"にわか雨",82:"激しいにわか雨",
        85:"にわか雪",86:"強いにわか雪",95:"雷雨",96:"雷雨と雹",99:"激しい雷雨と雹"}
 def weather():
+    try: return weather_open_meteo()
+    except Exception as e:
+        print(f"[warn] open-meteo: {e} -> 気象庁で取り直す", file=sys.stderr)
+        return weather_jma()
+def weather_open_meteo():
     q = urllib.parse.urlencode({"latitude":LAT,"longitude":LON,"timezone":"Asia/Tokyo",
         "daily":"weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,sunrise,sunset",
         "forecast_days":2})
@@ -32,6 +44,24 @@ def weather():
             "rain_mm":d["precipitation_sum"][0],
             "sunrise":d["sunrise"][0][-5:],"sunset":d["sunset"][0][-5:],
             "tomorrow_sky":WMO.get(d["weather_code"][1],"不明")}
+
+# 予備：気象庁。空模様は府県天気予報、気温はアメダスの今日の最高・最低（日の出入り・降水量は無し）
+JMA_OFFICE, JMA_AREA, JMA_AMEDAS = "290000", "290010", "64036"   # 奈良県・北部・奈良
+def weather_jma():
+    ts = json.loads(get(f"https://www.jma.go.jp/bosai/forecast/data/forecast/{JMA_OFFICE}.json"))[0]["timeSeries"][0]
+    area = next(a for a in ts["areas"] if a["area"]["code"] == JMA_AREA)
+    def sky(w):   # "くもり　時々　雨　所により　雷　を伴う" -> "くもり時々雨"
+        w = re.sub(r"\u3000(時々|のち|一時)\u3000", r"\1", w.split("\u3000所により")[0])
+        return w.replace("\u3000", " ")
+    days = {t[:10]: sky(w) for t, w in zip(ts["timeDefines"], area["weathers"])}
+    w = {"place":PLACE, "sky":days.get(TODAY.isoformat(),"不明"),
+         "tomorrow_sky":days.get((TODAY+dt.timedelta(days=1)).isoformat(),"不明")}
+    latest = dt.datetime.fromisoformat(get("https://www.jma.go.jp/bosai/amedas/data/latest_time.txt").strip())
+    if latest.date() == TODAY:
+        obs = json.loads(get(f"https://www.jma.go.jp/bosai/amedas/data/point/{JMA_AMEDAS}/{latest:%Y%m%d}_{latest.hour//3*3:02d}.json"))
+        o = obs[max(obs)]
+        w["tmax"], w["tmin"] = o["maxTemp"][0], o["minTemp"][0]
+    return w
 
 # ---------- 暦 ----------
 SEKKI = ["春分","清明","穀雨","立夏","小満","芒種","夏至","小暑","大暑","立秋","処暑","白露",
@@ -114,7 +144,12 @@ if __name__ == "__main__":
 
     w, s, mo, b = m["weather"], m["sekki"], m["moon"], m["bluesky"]
     lines = [f"# {m['date']}（{m['weekday']}）の材料", ""]
-    if w: lines.append(f"- 天気（{w['place']}）: {w['sky']}、最高{w['tmax']}℃／最低{w['tmin']}℃、降水{w['rain_mm']}mm、日の出{w['sunrise']}・日の入{w['sunset']}。明日は{w['tomorrow_sky']}")
+    if w:
+        parts = [w["sky"]]
+        if "tmax" in w: parts.append(f"最高{w['tmax']}℃／最低{w['tmin']}℃")
+        if "rain_mm" in w: parts.append(f"降水{w['rain_mm']}mm")
+        if "sunrise" in w: parts.append(f"日の出{w['sunrise']}・日の入{w['sunset']}")
+        lines.append(f"- 天気（{w['place']}）: {'、'.join(parts)}。明日は{w['tomorrow_sky']}")
     if s: lines.append(f"- 暦: {s['name']}（{s['day_in_sekki']}日目、次は{s['next']}）")
     if mo: lines.append(f"- 月: 月齢{mo['age']}・{mo['name']}")
     if m["anniversaries"]: lines += ["", "## 今日は何の日"] + [f"- {a}" for a in m["anniversaries"]]
